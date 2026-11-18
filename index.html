@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#f7cf9f" />
+    <!-- (phones: a home-screen copy opens full screen; no phone-number links in the text) -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="format-detection" content="telephone=no" />
+    <title>Oversteer</title>
+    <!-- The loading card's look lives here, so it is up from the very first paint, before the game's code and
+         stylesheet have arrived (src/ui/loading.js runs it from then on). -->
+    <style>
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #f7cf9f; }
+      #boot { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px; box-sizing: border-box;
+        font-family: 'Bahnschrift', 'DIN Alternate', 'Roboto Condensed', 'Arial Narrow', system-ui, sans-serif; color: #2a2233;
+        background: radial-gradient(120% 90% at 50% 112%, #ffdca8 0%, #f7cf9f 38%, #eeb48f 72%, #d99a8e 100%);
+        transition: opacity 0.5s ease; -webkit-user-select: none; user-select: none; }
+      #boot.hidden { opacity: 0; pointer-events: none; }
+      #boot.gone { display: none; }
+      #boot .ld-sun { position: absolute; left: 50%; bottom: -26vmin; width: 74vmin; height: 74vmin; margin-left: -37vmin; border-radius: 50%;
+        background: radial-gradient(circle, rgba(255, 238, 196, 0.95) 0%, rgba(255, 214, 150, 0.55) 45%, rgba(255, 200, 140, 0) 70%); pointer-events: none; }
+      #boot .ld-hills { position: absolute; left: 0; bottom: 0; width: 100%; height: 30vh; pointer-events: none; }
+      #boot .ld-card { position: relative; width: min(460px, 100%); box-sizing: border-box; padding: 30px 30px 22px; border-radius: 22px; background: #fff6e2;
+        box-shadow: 0 6px 0 rgba(42, 34, 51, 0.2), 0 24px 60px rgba(122, 52, 20, 0.22); display: grid; gap: 14px; text-align: center; }
+      #boot .ld-mark { display: block; font-size: clamp(44px, 12vw, 66px); font-style: italic; font-weight: 700; letter-spacing: -0.03em; line-height: 0.95; color: #2a2233; }
+      #boot .ld-mark span { color: #e4572e; }
+      #boot .ld-label { display: block; margin-top: -6px; font-size: 13px; letter-spacing: 0.24em; text-transform: uppercase; color: #6a5e72; font-weight: 600; }
+      #boot .ld-track { position: relative; height: 14px; margin: 18px 4px 0; border-radius: 999px; background: rgba(42, 34, 51, 0.1); box-shadow: inset 0 2px 0 rgba(42, 34, 51, 0.08); }
+      #boot .ld-fill { position: absolute; inset: 0; border-radius: 999px; background: linear-gradient(#f07a4e, #e4572e 55%, #c9471f); transform-origin: 0 50%;
+        transform: scaleX(0); transition: transform 0.45s cubic-bezier(.3, .7, .3, 1); will-change: transform; }
+      #boot .ld-head { position: absolute; left: 0; right: 0; bottom: 9px; height: 0; transform: translateX(0); transition: transform 0.45s cubic-bezier(.3, .7, .3, 1); will-change: transform; }
+      #boot .ld-car { position: absolute; left: -17px; bottom: 0; width: 34px; height: 20px; animation: ld-bob 0.42s ease-in-out infinite alternate; }
+      #boot .ld-row { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; color: #6a5e72; font-weight: 600; margin: -4px 4px 0; }
+      #boot .ld-pct { font-variant-numeric: tabular-nums; color: #2a2233; }
+      #boot .ld-tip { margin: 6px 0 0; padding: 12px 14px; border-radius: 14px; background: rgba(242, 194, 77, 0.22); font-size: 15px; line-height: 1.35; color: #2a2233; text-align: left;
+        display: flex; gap: 10px; align-items: baseline; min-height: 42px; box-sizing: border-box; }
+      #boot .ld-tip em { flex: none; font-style: normal; font-size: 11px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; background: #2a2233; color: #fff6e2; padding: 2px 7px; border-radius: 6px; }
+      #boot .ld-tip span { transition: opacity 0.3s; }
+      #boot .ld-tip span.out { opacity: 0; }
+      #boot .ld-go { justify-self: center; display: inline-flex; align-items: center; gap: 10px; margin-top: 4px; padding: 11px 16px 11px 24px; border: 0; border-radius: 999px;
+        background: #e4572e; color: #fff; font: inherit; font-size: 19px; font-weight: 700; letter-spacing: 0.04em; cursor: pointer;
+        box-shadow: 0 4px 0 #b93f1c; animation: ld-pulse 1.6s ease-in-out infinite; }
+      #boot .ld-go kbd { font: inherit; font-size: 12px; font-weight: 700; background: #fff6e2; color: #2a2233; border-radius: 6px; padding: 2px 8px; }
+      #boot.waiting .ld-pct { visibility: hidden; }
+      @keyframes ld-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.04); } }
+      @keyframes ld-bob { from { transform: translateY(0) rotate(-1deg); } to { transform: translateY(-1.5px) rotate(1deg); } }
+      @media (prefers-reduced-motion: reduce) { #boot .ld-car { animation: none; } }
+      @media (max-height: 480px) { #boot .ld-card { padding: 18px 22px 16px; gap: 10px; } #boot .ld-tip { display: none; } }
+    </style>
+    <script type="module" crossorigin src="./assets/index-CMWRgO89.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-CPla9YOM.css">
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+    <div id="ui"></div>
+    <div id="boot" role="progressbar" aria-label="Loading">
+      <div class="ld-sun"></div>
+      <svg class="ld-hills" viewBox="0 0 1200 300" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M0 190 C 160 120 300 150 420 170 S 700 110 860 150 S 1100 120 1200 140 L1200 300 L0 300 Z" fill="#d98f7c" opacity="0.55" />
+        <path d="M0 240 C 180 190 330 215 520 225 S 820 180 1000 210 S 1150 205 1200 200 L1200 300 L0 300 Z" fill="#b97a78" opacity="0.6" />
+        <path d="M0 275 C 240 250 460 268 700 262 S 1050 250 1200 258 L1200 300 L0 300 Z" fill="#8e6a78" opacity="0.65" />
+      </svg>
+      <div class="ld-card">
+        <b class="ld-mark">OVER<span>STEER</span></b>
+        <small class="ld-label">Loading</small>
+        <div class="ld-track">
+          <i class="ld-fill"></i>
+          <div class="ld-head"><svg class="ld-car" viewBox="0 0 34 20" aria-hidden="true">
+            <path d="M3 13 L4 8 L10 7 L14 2.5 L24 2.5 L28 7 L31.5 8 L32 13 Z" fill="#e4572e" />
+            <path d="M15 4 L23 4 L26 7 L12.4 7 Z" fill="#2a2233" />
+            <rect x="2.5" y="11" width="30" height="2.5" rx="1" fill="#b93f1c" />
+            <circle cx="9" cy="15" r="3.6" fill="#2a2233" /><circle cx="9" cy="15" r="1.4" fill="#fff6e2" />
+            <circle cx="26" cy="15" r="3.6" fill="#2a2233" /><circle cx="26" cy="15" r="1.4" fill="#fff6e2" />
+          </svg></div>
+        </div>
+        <div class="ld-row"><span class="ld-stage">Fetching the game</span><span class="ld-pct">0%</span></div>
+        <p class="ld-tip"><em>Tip</em><span>Hold the handbrake to swing the tail round.</span></p>
+      </div>
+    </div>
+    <script>
+      // While the game's code downloads, the bar creeps toward its first few per cent (src/ui/loading.js takes
+      // over the moment the code runs, from wherever this got to).
+      (function () {
+        var b = document.getElementById('boot'), f = b.querySelector('.ld-fill'), h = b.querySelector('.ld-head'), pc = b.querySelector('.ld-pct');
+        var t0 = Date.now(), st = window.__bootLoad = { p: 0 };
+        var tick = function () {
+          var p = 0.07 * (1 - Math.exp(-(Date.now() - t0) / 2500));
+          st.p = p;
+          f.style.transform = 'scaleX(' + p.toFixed(4) + ')';
+          h.style.transform = 'translateX(' + (p * 100).toFixed(2) + '%)';
+          pc.textContent = Math.floor(p * 100) + '%';
+        };
+        var iv = setInterval(tick, 250);
+        st.stop = function () { clearInterval(iv); };
+      })();
+    </script>
+  </body>
+</html>
